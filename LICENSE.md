@@ -1,5 +1,5 @@
-Copyright (c) 2011, Stephen Fewer of Harmony Security (www.harmonysecurity.com)
-Copyright (c) 2017, Rokas Kupstys
+
+Copyright (c) 2012-2017 ReflectiveLdr contributors (see AUTHORS.md)
 
 All rights reserved.
 
@@ -13,7 +13,7 @@ conditions and the following disclaimer.
 conditions and the following disclaimer in the documentation and/or other materials provided
 with the distribution.
 
-    * Neither the name of Harmony Security nor the names of its contributors may be used to
+    * Neither the name of copyright holder nor the names of its contributors may be used to
 endorse or promote products derived from this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
