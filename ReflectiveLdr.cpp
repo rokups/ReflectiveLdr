@@ -298,19 +298,18 @@ HMODULE Ldr::MapImageAndExecute(LPCVOID lpImage, LPVOID lpParameter)
     // STEP 2: load our image into a new permanent location in memory...
 
     // get the VA of the NT Header for the PE to be loaded
-    PIMAGE_NT_HEADERS pNtHdr = (PIMAGE_NT_HEADERS)((PBYTE)lpImage + ((PIMAGE_DOS_HEADER)lpImage)->e_lfanew);
+    auto pNtHdr = (PIMAGE_NT_HEADERS)((PBYTE)lpImage + ((PIMAGE_DOS_HEADER)lpImage)->e_lfanew);
 
     // allocate all the memory for the DLL to be loaded into. we can load at any address because we will
     // relocate the image. Also zeros all memory and marks it as READ, WRITE and EXECUTE to avoid any problems.
-    PBYTE pbNewBase = (PBYTE)alloc(pNtHdr->OptionalHeader.SizeOfImage, PAGE_EXECUTE_READWRITE);
+    auto pbNewBase = (PBYTE)alloc(pNtHdr->OptionalHeader.SizeOfImage, PAGE_EXECUTE_READWRITE);
 
     // we must now copy over the headers
     memcpy_i(pbNewBase, lpImage, pNtHdr->OptionalHeader.SizeOfHeaders);
     pNtHdr = (PIMAGE_NT_HEADERS)(pbNewBase + ((PIMAGE_DOS_HEADER)pbNewBase)->e_lfanew);
 
     // STEP 3: load in all of our sections...
-    PIMAGE_SECTION_HEADER pSection = ((PIMAGE_SECTION_HEADER)((PBYTE)&pNtHdr->OptionalHeader +
-                                                              pNtHdr->FileHeader.SizeOfOptionalHeader));
+    auto pSection = ((PIMAGE_SECTION_HEADER)((PBYTE)&pNtHdr->OptionalHeader + pNtHdr->FileHeader.SizeOfOptionalHeader));
     for (WORD i = 0; i < pNtHdr->FileHeader.NumberOfSections; i++, pSection++)
         memcpy_i(pbNewBase + pSection->VirtualAddress, (PBYTE)lpImage + pSection->PointerToRawData,
                  pSection->SizeOfRawData);
@@ -324,7 +323,7 @@ HMODULE Ldr::MapImageAndExecute(LPCVOID lpImage, LPVOID lpParameter)
         // iterate through all imports
         while (pImport->Name)
         {
-            LPCSTR cpLibraryName = (LPCSTR)(pbNewBase + pImport->Name);
+            auto cpLibraryName = (LPCSTR)(pbNewBase + pImport->Name);
             PBYTE bpDepBase = 0;
 
             bpDepBase = (PBYTE)LoadLibrary(cpLibraryName);
