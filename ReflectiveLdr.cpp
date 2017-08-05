@@ -159,9 +159,40 @@ __declspec(noinline) ULONG_PTR caller(VOID)
 #endif
 }
 
-Ldr::Ldr() : _api(0), _reflectiveModules(0), _importAlternatives(0), _cachedModules(0)
+Ldr::Ldr() : _api(0)
 {
+    InitializeListHead(&_reflectiveModules);
+    InitializeListHead(&_importAlternatives);
+    InitializeListHead(&_cachedModules);
     LoadApi();
+}
+
+Ldr::~Ldr()
+{
+    while(_reflectiveModules.Flink != &_reflectiveModules)
+    {
+        ReflectiveModule* m = (ReflectiveModule*)_reflectiveModules.Flink;
+        RemoveEntryList(m);
+        dealloc(m);
+    }
+
+    while(_importAlternatives.Flink != &_importAlternatives)
+    {
+        ImportMapping* m = (ImportMapping*)_importAlternatives.Flink;
+        RemoveEntryList(m);
+        dealloc(m);
+    }
+
+    while(_cachedModules.Flink != &_cachedModules)
+    {
+        CachedModule* m = (CachedModule*)_cachedModules.Flink;
+        dealloc(m->pImage);
+        RemoveEntryList(m);
+        dealloc(m);
+    }
+
+    dealloc(_api);
+    _api = 0;
 }
 
 const char* Ldr::GetOriginalImageName(PVOID bpBase)
@@ -573,6 +604,8 @@ HANDLE Ldr::LoadRemoteLibraryR(HANDLE hProcess, LPVOID lpBuffer, DWORD dwLength,
 
         } while (0);
 
+        if (hThread == 0 && lpRemoteLibraryBuffer)
+            VirtualFreeEx(hProcess, lpRemoteLibraryBuffer, dwLength, MEM_RELEASE);
     }
 #if !__GNUC__
     __except( EXCEPTION_EXECUTE_HANDLER )
@@ -686,9 +719,7 @@ void Ldr::RegisterLoadedModule(HMODULE hModule)
     auto module = alloc<ReflectiveModule>();
     module->hModule = hModule;
     module->cpName = GetOriginalImageName(hModule);
-
-    module->FLink = _reflectiveModules;
-    _reflectiveModules = module;
+    InsertTailList(&_reflectiveModules, module);
 }
 
 template<typename T>
@@ -716,11 +747,17 @@ HMODULE Ldr::LoadLibrary(const char* cpName)
     // Load reflective module from cache if any.
     if (!hModule)
     {
-        for (auto m = _cachedModules; m; m = (CachedModule*)_cachedModules->FLink)
+        FOREACH_LIST_ENTRY(CachedModule, m, _cachedModules)
         {
             if (stricmp_i(m->module, cpName) == 0)
             {
                 hModule = MapImageAndExecute(m->pImage, 0);
+                if (hModule)
+                {
+                    dealloc(m->pImage);
+                    RemoveEntryList(m);
+                    dealloc(m);
+                }
                 break;
             }
         }
@@ -744,7 +781,7 @@ FARPROC Ldr::GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
     if (!result)
     {
         const char* cpModuleName = GetOriginalImageName(hModule);
-        for (auto m = _importAlternatives; m != 0; m = (ImportMapping*)_importAlternatives->FLink)
+        FOREACH_LIST_ENTRY(ImportMapping, m, _importAlternatives)
         {
             if (stricmp_i(m->module, cpModuleName, sizeof(m->module)) == 0 &&
                 strcmp_i(m->proc, lpProcName, sizeof(m->proc)) == 0)
@@ -764,14 +801,12 @@ void Ldr::SetImportAlternative(const char* cpModuleName, const char* cpProcName,
     import->pOverride = pNewProc;
     strcpy_i(import->module, cpModuleName, sizeof(import->module));
     strcpy_i(import->proc, cpProcName, sizeof(import->proc));
-    import->FLink = _importAlternatives;
-    _importAlternatives = import;
+    InsertTailList(&_importAlternatives, import);
 }
 
 HMODULE Ldr::GetModuleHandleR(const char* cpName)
 {
-    auto len = strlen_i(cpName);
-    for (ReflectiveModule* m = _reflectiveModules; m; m = (ReflectiveModule*)m->FLink)
+    FOREACH_LIST_ENTRY(ReflectiveModule, m, _reflectiveModules)
     {
         // In case modules are queried using full name.
         if (stricmp_i(m->cpName, cpName) == 0)
@@ -782,7 +817,7 @@ HMODULE Ldr::GetModuleHandleR(const char* cpName)
 
 bool Ldr::IsReflectiveModule(HMODULE hModule)
 {
-    for (ReflectiveModule* m = _reflectiveModules; m; m = (ReflectiveModule*)m->FLink)
+    FOREACH_LIST_ENTRY(ReflectiveModule, m, _reflectiveModules)
     {
         if (m->hModule == hModule)
             return true;
@@ -794,10 +829,11 @@ void Ldr::SetCachedModule(const char* cpModuleName, const void* pImage, size_t n
 {
     auto m = alloc<CachedModule>();
     strcpy_i(m->module, cpModuleName, sizeof(m->module));
-    m->pImage = pImage;
+    void* pImageCopy = alloc(nImageLength);
+    memcpy_i(pImageCopy, pImage, nImageLength);
+    m->pImage = pImageCopy;
     m->nImageLength = nImageLength;
-    m->FLink = _cachedModules;
-    _cachedModules = m;
+    InsertTailList(&_cachedModules, m);
 }
 
 }

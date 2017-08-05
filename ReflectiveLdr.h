@@ -39,12 +39,7 @@ namespace Reflective
 
 struct ReflectiveApi;
 
-struct LinkedList
-{
-    LinkedList* FLink;
-};
-
-struct ReflectiveModule : public LinkedList
+struct ReflectiveModule : LIST_ENTRY
 {
     /// Pointer to original module name in module EAT.
     const char* cpName;
@@ -52,7 +47,7 @@ struct ReflectiveModule : public LinkedList
     HMODULE hModule;
 };
 
-struct ImportMapping : public LinkedList
+struct ImportMapping : LIST_ENTRY
 {
     /// Name of DLL whose export is to be overriden.
     char module[128];
@@ -62,12 +57,12 @@ struct ImportMapping : public LinkedList
     FARPROC pOverride;
 };
 
-struct CachedModule : public LinkedList
+struct CachedModule : LIST_ENTRY
 {
     /// Name of DLL that will be cached.
     char module[128];
     /// Pointer to memory range which contains module PE image.
-    const void* pImage;
+    void* pImage;
     /// Pength of memory pointed to by `pImage`.
     size_t nImageLength;
 };
@@ -76,6 +71,7 @@ class Ldr
 {
 public:
     Ldr();
+    ~Ldr();
 
     /// Loads exported function address from a mapped module. Works with reflective modules. Handles API overriding too.
     FARPROC GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
@@ -108,9 +104,9 @@ public:
 
 protected:
     ReflectiveApi* _api;
-    ReflectiveModule* _reflectiveModules;
-    ImportMapping* _importAlternatives;
-    CachedModule* _cachedModules;
+    LIST_ENTRY _reflectiveModules;
+    LIST_ENTRY _importAlternatives;
+    LIST_ENTRY _cachedModules;
 
     void LoadApi();
     void RegisterLoadedModule(HMODULE hModule);

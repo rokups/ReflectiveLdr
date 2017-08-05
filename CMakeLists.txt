@@ -1,5 +1,5 @@
 # 
-# Copyright (c) 2012-2017 ReflectiveLdr contributors (see AUTHORS.md)
+# Copyright (c) 2012-2017 ReflectiveLdr contributors (see COPYRIGHT.md)
 # 
 # All rights reserved.
 # 
