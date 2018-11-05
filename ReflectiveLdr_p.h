@@ -234,7 +234,7 @@ struct ReflectiveApi
     decltype(&::VirtualAlloc) VirtualAlloc;
     decltype(&::VirtualFree) VirtualFree;
     decltype(&::FlushInstructionCache) FlushInstructionCache;
-#if WIN64
+#if _WIN64
     decltype(&::RtlAddFunctionTable) RtlAddFunctionTable;
 #endif
 };
